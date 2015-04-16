@@ -1,11 +1,10 @@
 /**
- * NGX 
+ * NGX
  * Tiny Javascript Framework
  * Copyright (c) Nick Gejadze
  * Licensed under the GPL.
  */
 (function() {
-
     var NG = {}, fx = {};
     extend = function(obj, props) {
         for (var prop in props) {
@@ -37,7 +36,7 @@
         if (arguments.length == 0) {
             return this;
         } else if (arguments.length == 1) {
-            NG.X.selector(arguments[0]);
+            return NG.X.selector(arguments[0]);
         } else {
             NG.X.selector(arguments.join(","));
         }
@@ -45,7 +44,7 @@
     }
     NG.X.this = [];
     fx.selector = function(selector) {
-        if (typeof selector !== "undefined") {
+        if (selector.substr(0, 1) == '#' || selector.substr(0, 1) == '.' || selector.indexOf(",") > -1) {
             var selectors = selector.split(',');
             NG.X.this = [];
             var c = selectors.length;
@@ -58,7 +57,6 @@
                     TmpElements = NG.X.getByClass(selector.substr(1));
                     NG.X.this = NG.X.this.concat(TmpElements);
                 } else {
-                    TmpElements = document.getElementsByTagName(selector);
                     var tc = TmpElements.length;
                     while (tc--) {
                         NG.X.this.push(TmpElements[tc]);
@@ -66,9 +64,15 @@
                 }
             }
             NG.X.this.reverse();
+        } else {
+            TmpElements = document.getElementsByTagName(selector);
+            if (TmpElements.length == 0) {
+                NG.X.this.push(NG.X.createXElement(selector));
+            }
         }
         return NG.X;
     }
+    
     fx.getById = function(id) {
         return document.getElementById(id);
     }
@@ -178,7 +182,6 @@
         }
         return NG.X;
     },
-    //nbind events from the elements
     fx.unbind = function(action, callback) {
         if (NG.X.this[0].removeEventListener) {
             var c = ELEMENTS.length;
@@ -193,6 +196,65 @@
         }
         return NG.X;
     }
+    fx.methods = {}
+    fx.methods.done = function() {}
+    fx.methods.error = function() {}
+    fx.get = function(url, params, callback) {
+        return NG.X.ajax(url, 'GET', params, callback);
+    }
+    fx.post = function(url, data, callback) {
+        return NG.X.ajax(url, 'POST', data, callback);
+    }
+    fx.ajax = function(url, method, params, callback) {
+        var xhr = new XMLHttpRequest();
+        var urlParam;
+        if (params) {
+            var ar = [];
+            for (var prm in params) {
+                ar.push(prm + '=' + encodeURIComponent(params[prm]));
+            }
+            urlParam = ar.join('&');
+        }
+        if (method.toUpperCase() == "GET" && urlParam != "") {
+            url += "?" + urlParam;
+            var urlParam = null;
+        }
+        xhr.open(method.toUpperCase(), url, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.addEventListener('readystatechange', function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var Response = NG.X.parseResponse(xhr.responseText);
+                    callback(Response);
+                    return NG.X.methods.done(NG.X.parseResponse(xhr.responseText));
+                }
+                NG.X.methods.error(NG.X.parseResponse(xhr.responseText));
+            }
+        }, false);
+        xhr.send(dt);
+        return NG.X.registerMethods();
+    }
+    fx.parseResponse = function(response) {
+        var result;
+        try {
+            result = JSON.parse(response);
+        } catch (e) {
+            result = response;
+        }
+        return result;
+    }
+    fx.registerMethods = function() {
+        return {
+            done: function done(callback) {
+                NG.X.methods.done = callback;
+                return this;
+            },
+            error: function error(callback) {
+                NG.X.methods.error = callback;
+                return this;
+            }
+        }
+    }
     fx.trim = function(str) {
         var str = str.replace(/^\s\s*/, ''),
             ws = /\s/,
@@ -204,7 +266,6 @@
         var text = document.createTextNode(html);
         return new XMLSerializer().serializeToString(text);
     },
-    
     fx.opacity = function(level) {
         var c = NG.X.this.length;
         while (c--) {
@@ -250,70 +311,6 @@
             }
         }
         return NG.X;
-    }
-    
-    fx.methods = {}
-    fx.methods.done = function() {}
-    fx.methods.error = function() {}
-    
-    fx.get = function(url, params, callback) {
-        return NG.X.ajax(url, 'GET', params, callback);
-    }
-    fx.post = function(url, data, callback) {
-        return NG.X.ajax(url, 'POST', data, callback);
-    }
-    fx.ajax = function(url, method, params, callback) {
-        var xhr = new XMLHttpRequest();
-        var dt;
-        if (params) {
-            var ar = [];
-            for (var prm in params) {
-                ar.push(prm + '=' + encodeURIComponent(params[prm]));
-            }
-            dt = ar.join('&');
-        }
-        if(method.toUpperCase() == "GET" && dt != ""){
-            url+="?"+dt;
-            var dt=null;
-        }
-        xhr.open(method.toUpperCase(), url, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.addEventListener('readystatechange', function(){
-            if (xhr.readyState === 0) {
-                // beforeSend ??
-            }else if (xhr.readyState === 4) {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    var Response = NG.X.parseResponse(xhr.responseText);
-                    callback(Response);
-                    return NG.X.methods.done(NG.X.parseResponse(xhr.responseText));
-                }
-                NG.X.methods.error(NG.X.parseResponse(xhr.responseText));
-            }
-        }, false);
-        xhr.send(dt);
-        return NG.X.registerMethods();
-    }
-   
-    fx.parseResponse = function(response) {
-        var result;
-        try {
-            result = JSON.parse(response);
-        } catch (e) {
-            result = response;
-        }
-        return result;
-    }
-    fx.registerMethods = function() {
-        return {
-            done: function done(callback) {
-                NG.X.methods.done = callback;
-                return this;
-            },
-            error: function error(callback) {
-                NG.X.methods.error = callback;
-                return this;
-            }
-        }
     }
     if (!window.$) {
         $ = window.$ = NG.ready;
