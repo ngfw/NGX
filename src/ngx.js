@@ -212,7 +212,7 @@
     },
     fx.unbind = function(action, callback) {
         if (typeof NG.X.this[0] !== "undefined" && NG.X.this[0].removeEventListener) {
-            var c = ELEMENTS.length;
+            var c = NG.X.this.length;
             while (c--) {
                 NG.X.this[c].removeEventListener(action, callback, false);
             }
