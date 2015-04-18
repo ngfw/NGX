@@ -33,18 +33,22 @@
         }, 50);
     }
     NG.X = function() {
-        if (arguments.length == 0) {
-            return this;
-        } else if (arguments.length == 1) {
+        //if (arguments.length == 0) {
+        //    return this;
+        //} else if (arguments.length == 1) {
+        if (arguments.length == 1) {
             return NG.X.selector(arguments[0]);
-        } else {
+        } else if (arguments.length > 1) {
             NG.X.selector(arguments.join(","));
         }
         return NG.X;
     }
     NG.X.this = [];
     fx.selector = function(selector) {
-        if (selector.substr(0, 1) == '#' || selector.substr(0, 1) == '.' || selector.indexOf(",") > -1) {
+        if (typeof selector == "object") {
+            NG.X.this = [];
+            NG.X.this.push(selector);
+        } else if (selector.substr(0, 1) == '#' || selector.substr(0, 1) == '.' || selector.indexOf(",") > -1) {
             var selectors = selector.split(',');
             NG.X.this = [];
             var c = selectors.length;
@@ -67,12 +71,12 @@
         } else {
             TmpElements = document.getElementsByTagName(selector);
             if (TmpElements.length == 0) {
-                NG.X.this.push(NG.X.createXElement(selector));
+                //NG.X.this.push(NG.X.createXElement(selector));
             }
         }
         return NG.X;
     }
-    
+
     fx.getById = function(id) {
         return document.getElementById(id);
     }
@@ -88,11 +92,27 @@
         }
         return elements;
     }
+    fx.data = function(key, value) {
+        var c = NG.X.this.length;
+        if (typeof key !== "undefined" && typeof value !== "undefined") {
+            while (c--) {
+                NG.X.this[c].setAttribute("data-" + key, value);
+            }
+            return NG.X;
+        } else if (typeof key !== "undefined" && typeof value === "undefined") {
+            return NG.X.this[0].getAttribute("data-" + key);
+        }
+    }
     fx.html = function(html) {
         var c = NG.X.this.length;
         if (typeof html !== "undefined") {
             while (c--) {
-                NG.X.this[c].innerHTML = html;
+                if (typeof html == "object") {
+                    NG.X.this[c].innerHTML = "";
+                    NG.X.this[c].appendChild(html);
+                } else {
+                    NG.X.this[c].innerHTML = html;
+                }
             }
             return NG.X;
         } else {
@@ -102,14 +122,22 @@
     fx.append = function(html) {
         var c = NG.X.this.length;
         while (c--) {
-            NG.X.this[c].innerHTML = NG.X.this[c].innerHTML + html;
+            if (typeof html == "object") {
+                NG.X.this[c].appendChild(html);
+            } else {
+                NG.X.this[c].innerHTML = NG.X.this[c].innerHTML + html;
+            }
         }
         return NG.X;
     }
     fx.prepend = function(html) {
         var c = NG.X.this.length;
         while (c--) {
-            NG.X.this[c].innerHTML = html + NG.X.this[c].innerHTML;
+            if (typeof html == "object") {
+                NG.X.this[c].insertBefore(html, NG.X.this[c].firstChild);
+            } else {
+                NG.X.this[c].innerHTML = html + NG.X.this[c].innerHTML;
+            }
         }
         return NG.X;
     }
@@ -169,12 +197,12 @@
         return NG.X;
     }
     fx.bind = function(action, callback) {
-        if (NG.X.this[0].addEventListener) {
+        if (typeof NG.X.this[0] !== "undefined" && NG.X.this[0].addEventListener) {
             var c = NG.X.this.length;
             while (c--) {
                 NG.X.this[c].addEventListener(action, callback, false);
             }
-        } else if (NG.X.this[0].attachEvent) {
+        } else if (typeof NG.X.this[0] !== "undefined" && NG.X.this[0].attachEvent) {
             var c = NG.X.this.length;
             while (c--) {
                 NG.X.this[c].attachEvent('bind' + action, callback);
@@ -183,12 +211,12 @@
         return NG.X;
     },
     fx.unbind = function(action, callback) {
-        if (NG.X.this[0].removeEventListener) {
+        if (typeof NG.X.this[0] !== "undefined" && NG.X.this[0].removeEventListener) {
             var c = ELEMENTS.length;
             while (c--) {
                 NG.X.this[c].removeEventListener(action, callback, false);
             }
-        } else { //IE
+        } else if (typeof NG.X.this[0] !== "undefined") {
             var c = NG.X.this.length;
             while (c--) {
                 NG.X.this[c].detachEvent('bind' + action, callback);
@@ -206,6 +234,8 @@
         return NG.X.ajax(url, 'POST', data, callback);
     }
     fx.ajax = function(url, method, params, callback) {
+        if (typeof method == "undefined") method = "GET";
+        if (typeof params == "undefined") params = false;
         var xhr = new XMLHttpRequest();
         var urlParam;
         if (params) {
@@ -215,7 +245,7 @@
             }
             urlParam = ar.join('&');
         }
-        if (method.toUpperCase() == "GET" && urlParam != "") {
+        if (method.toUpperCase() == "GET" && typeof urlParam !== "undefined" && urlParam != "") {
             url += "?" + urlParam;
             var urlParam = null;
         }
@@ -225,13 +255,15 @@
             if (xhr.readyState === 4) {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     var Response = NG.X.parseResponse(xhr.responseText);
-                    callback(Response);
+                    if (typeof callback !== "undefined") {
+                        callback(Response);
+                    }
                     return NG.X.methods.done(NG.X.parseResponse(xhr.responseText));
                 }
                 NG.X.methods.error(NG.X.parseResponse(xhr.responseText));
             }
         }, false);
-        xhr.send(dt);
+        xhr.send(urlParam);
         return NG.X.registerMethods();
     }
     fx.parseResponse = function(response) {
